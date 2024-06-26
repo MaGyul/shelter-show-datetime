@@ -105,7 +105,7 @@
             data = data.list;
         }
         if (data.has_next) {
-            nextId = data.list[data.list.length - 1].id;
+            nextId = data.list.at(-1).id;
         } else nextId = undefined;
         if (data.has_prev) {
             prevId = data.list[0].id;
