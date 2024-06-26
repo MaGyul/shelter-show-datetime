@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.0.1
+// @version      1.1.0
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
@@ -12,6 +12,8 @@
 
 (function() {
     'use strict';
+
+    document.addEventListener("DOMContentLoaded", updateDate);
 
     // history onpushstate setup
     (function(history){
@@ -44,4 +46,6 @@
             }
         }, 200);
     }
+
+    updateDate();
 })();
