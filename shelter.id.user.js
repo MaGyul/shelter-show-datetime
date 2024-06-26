@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.3.1
+// @version      1.3.2
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
@@ -157,7 +157,7 @@
 
     function getPageSize() {
         let dom = document.querySelector('.page-size');
-        var index = dom ? 0 : dom.selectedIndex;
+        var index = dom ? dom.selectedIndex : 0;
         if (index === 1) return 80;
         if (index === 2) return 100;
         return 40;
