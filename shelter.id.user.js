@@ -5,6 +5,7 @@
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
+// @match        http://shelter.id/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=shelter.id
 // @updateURL    https://raw.githubusercontent.com/MaGyul/test/main/shelter.id.user.js
 // @downloadURL  https://raw.githubusercontent.com/MaGyul/test/main/shelter.id.user.js
@@ -81,8 +82,7 @@
                 boardsPath = '';
                 isOwner = 'is_only_shelter_owner=true&';
             }
-            // https://rest.shelter.id/v1.0/list-items/personal/gM7ZgsaLScbOwQ5eQ/shelter/articles?offset_id=433524&size=40 next
-            // https://rest.shelter.id/v1.0/list-items/personal/gM7ZgsaLScbOwQ5eQ/shelter/articles?prev_id=433521&size=40 prev
+
             switch(type) {
                 case 'next':
                     fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${nextId ? 'offset_id=' + nextId + '&' : ''}${isOwner}size=${pageSize}`)
@@ -153,7 +153,7 @@
 
     function getPageSize() {
         let dom = document.querySelector('.page-size');
-        var index = dom.selectedIndex;
+        var index = dom ? 0 : dom.selectedIndex;
         if (index === 1) return 80;
         if (index === 2) return 100;
         return 40;
