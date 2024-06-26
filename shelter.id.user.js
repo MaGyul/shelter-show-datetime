@@ -106,10 +106,10 @@
         }
         if (data.has_next) {
             nextId = data.list[data.list.length - 1].id;
-        }
+        } else nextId = undefined;
         if (data.has_prev) {
             prevId = data.list[0].id;
-        }
+        } else prevId = undefined;
 
         for (let item of data.list) {
             let ele = [...document.querySelectorAll(`app-board-list-item[data-id="${item.id}"] > .SHELTER_COMMUNITY`)].at(-1);
