@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.2.0
+// @version      1.2.1
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
@@ -17,7 +17,7 @@
     var nextId = undefined;
     var prevId = undefined;
 
-    document.addEventListener("DOMContentLoaded", main);
+    document.addEventListener("DOMContentLoaded", () => main('dom-loaded'));
 
     // history onpushstate setup
     (function(history){
@@ -30,49 +30,70 @@
         };
     })(window.history);
 
-    history.onpushstate = main;
+    history.onpushstate = () => main('history');
 
-    function main() {
-        findDom('.tit-refresh', (dom) => {
-            dom.onclick = () => {
-                fetchArticles('default');
-            };
-        });
-        findDom('button.prev', (dom) => {
-            dom.onclick = () => {
-                fetchArticles('prev');
-            };
-        });
-        findDom('button.next', (dom) => {
-            dom.onclick = () => {
-                fetchArticles('next');
-            };
-        });
-        updateDate();
-        fetchArticles('default');
+    function main(type) {
+        if (type == 'history') {
+            updateDate();
+        } else if (type == 'script-injected') {
+            findDom('.tit-refresh', (dom) => {
+                dom.onclick = () => {
+                    fetchArticles('default');
+                };
+            });
+            findDom('button.prev', (dom) => {
+                dom.onclick = () => {
+                    fetchArticles('prev');
+                };
+            });
+            findDom('button.next', (dom) => {
+                dom.onclick = () => {
+                    fetchArticles('next');
+                };
+            });
+            findDom('.page-size', (dom) => {
+                dom.onchange = () => {
+                    fetchArticles('default');
+                }
+            });
+        }
+        if (type != 'history') {
+            fetchArticles('default');
+        }
     }
 
     function fetchArticles(type) {
         setTimeout(() => {
-            let pageSize = getPageSize();
-            if (document.querySelector('.board__body')?.children?.length < pageSize) {
+            if (document.querySelector('.board__body')?.children?.length <= 6) {
                 return fetchArticles(type);
             }
-            let shelterId = location.pathname.split('/')[1];
+            let pageSize = getPageSize();
+            let pathSplit = location.pathname.split('/');
+            let shelterId = pathSplit[1];
             if (shelterId == 'planet') return;
+            let boardId = pathSplit.at(-1);
+            let boardsPath = '';
+            if (boardId != 'all') {
+                boardsPath = `boards/${boardId}/`;
+            }
+            let isOwner = '';
+            if (boardId == 'owner') {
+                boardsPath = '';
+                isOwner = 'is_only_shelter_owner=true&';
+            }
             // https://rest.shelter.id/v1.0/list-items/personal/gM7ZgsaLScbOwQ5eQ/shelter/articles?offset_id=433524&size=40 next
             // https://rest.shelter.id/v1.0/list-items/personal/gM7ZgsaLScbOwQ5eQ/shelter/articles?prev_id=433521&size=40 prev
             switch(type) {
                 case 'next':
-                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/articles?${nextId ? 'offset_id=' + nextId + '&' : ''}size=${pageSize}`)
+                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${nextId ? 'offset_id=' + nextId + '&' : ''}${isOwner}size=${pageSize}`)
                         .then(r => r.json()).then(updateDateArticles);
                     break;
                 case 'prev':
-                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/articles?${prevId ? 'prev_id=' + prevId + '&' : ''}size=${pageSize}`)
+                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${prevId ? 'prev_id=' + prevId + '&' : ''}${isOwner}size=${pageSize}`)
                         .then(r => r.json()).then(updateDateArticles);
                     break;
                 default:
-                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/articles?size=${pageSize}`)
+                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${isOwner}size=${pageSize}`)
                         .then(r => r.json()).then(updateDateArticles);
                     break;
             }
@@ -80,6 +101,9 @@
     }
 
     function updateDateArticles(data) {
+        if (!Array.isArray(data.list)) {
+            data = data.list;
+        }
         if (data.has_next) {
             nextId = data.list[data.list.length - 1].id;
         }
@@ -153,5 +177,5 @@
         }, 500);
     }
 
-    main();
+    main('script-injected');
 })();
