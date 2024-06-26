@@ -52,20 +52,6 @@
         fetchArticles('default');
     }
 
-    function getPageSize() {
-        let dom = document.querySelector('.page-size');
-        var index = dom.selectedIndex;
-        if (index === 1) return 80;
-        if (index === 2) return 100;
-        return 40;
-    }
-
-    function getLastBoardId() {
-        let dom = document.querySelector('.board__body');
-        let lastEle = dom.lastElementChild;
-        return lastEle.getAttribute('data-id');
-    }
-
     function fetchArticles(type) {
         setTimeout(() => {
             let pageSize = getPageSize();
@@ -139,6 +125,14 @@
                 title_li.appendChild(time_span);
             }
         }, 200);
+    }
+
+    function getPageSize() {
+        let dom = document.querySelector('.page-size');
+        var index = dom.selectedIndex;
+        if (index === 1) return 80;
+        if (index === 2) return 100;
+        return 40;
     }
 
     function change9under(i) {
