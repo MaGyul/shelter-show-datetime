@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.3.0
+// @version      1.3.1
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
@@ -131,6 +131,7 @@
                 } else {
                     create_ele.textContent = `${year}-${month}-${date}`;
                 }
+                create_ele.title = create_date.toLocaleString();
             }
         }
     }
