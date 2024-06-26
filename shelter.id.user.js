@@ -7,8 +7,8 @@
 // @match        https://shelter.id/*
 // @match        http://shelter.id/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=shelter.id
-// @updateURL    https://raw.githubusercontent.com/MaGyul/test/main/shelter.id.user.js
-// @downloadURL  https://raw.githubusercontent.com/MaGyul/test/main/shelter.id.user.js
+// @updateURL    https://raw.githubusercontent.com/MaGyul/shelter-show-datetime/main/shelter.id.user.js
+// @downloadURL  https://raw.githubusercontent.com/MaGyul/shelter-show-datetime/main/shelter.id.user.js
 // @grant        none
 // ==/UserScript==
 
