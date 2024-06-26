@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.2.1
+// @version      1.3.0
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
@@ -36,7 +36,8 @@
     function main(type) {
         if (type == 'history') {
             updateDate();
-        } else if (type == 'script-injected') {
+        }
+        if (type == 'history' || type == 'script-injected') {
             findDom('.tit-refresh', (dom) => {
                 dom.onclick = () => {
                     fetchArticles('default');
@@ -58,9 +59,11 @@
                 }
             });
         }
-        if (type != 'history') {
-            fetchArticles('default');
-        }
+        setTimeout(() => {
+            if (!location.pathname.endsWith(')')) {
+                fetchArticles('default');
+            }
+        }, 10);
     }
 
     function fetchArticles(type) {
@@ -83,20 +86,20 @@
                 isOwner = 'is_only_shelter_owner=true&';
             }
 
+            let query = `size=${pageSize}`;
             switch(type) {
                 case 'next':
-                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${nextId ? 'offset_id=' + nextId + '&' : ''}${isOwner}size=${pageSize}`)
-                        .then(r => r.json()).then(updateDateArticles);
+                    query = `${nextId ? 'offset_id=' + nextId + '&' : ''}${isOwner}` + query;
                     break;
                 case 'prev':
-                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${prevId ? 'prev_id=' + prevId + '&' : ''}${isOwner}size=${pageSize}`)
-                        .then(r => r.json()).then(updateDateArticles);
+                    query = `${prevId ? 'prev_id=' + prevId + '&' : ''}${isOwner}` + query;
                     break;
                 default:
-                    fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${isOwner}size=${pageSize}`)
-                        .then(r => r.json()).then(updateDateArticles);
+                    query = isOwner + query;
                     break;
             }
+
+            fetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/${boardsPath}articles?${query}`).then(r => r.json()).then(updateDateArticles);
         }, 500);
     }
 
