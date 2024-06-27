@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         test
 // @namespace    https://shelter.id/
-// @version      1.0.0
+// @version      1.4.0
 // @description  test
 // @author       MaGyul
 // @match        https://shelter.id/*
