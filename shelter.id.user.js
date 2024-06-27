@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.3.4
+// @version      1.3.5
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
-// @match        https://shelter.id/*
-// @match        http://shelter.id/*
+// @match        *://shelter.id/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=shelter.id
 // @updateURL    https://raw.githubusercontent.com/MaGyul/shelter-show-datetime/main/shelter.id.user.js
 // @downloadURL  https://raw.githubusercontent.com/MaGyul/shelter-show-datetime/main/shelter.id.user.js
@@ -51,6 +50,7 @@
         }
         if (type == 'script-injected') {
             fetchArticles('default');
+            console.log('[ssd] 날자 및 시간 표시 준비완료');
         }
     }
 
