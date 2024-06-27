@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.3.5
+// @version      1.3.6
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -83,7 +83,9 @@
                 return fetchArticles(type);
             }
             let pageSize = getPageSize();
-            let pathSplit = location.pathname.split('/');
+            let pathname = location.pathname;
+            if (pathname.includes('(') && pathname.includes(')')) return;
+            let pathSplit = pathname.split('/');
             let shelterId = pathSplit[1];
             if (shelterId == 'planet') return;
             let boardId = pathSplit.at(-1);
