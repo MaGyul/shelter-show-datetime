@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         test
+// @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
 // @version      1.3.3
-// @description  test
+// @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        https://shelter.id/*
 // @match        http://shelter.id/*
