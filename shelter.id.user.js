@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         쉘터 정확한 날자 및 시간 표시
+// @name         test
 // @namespace    https://shelter.id/
-// @version      1.3.2
-// @description  쉘터 정확한 날자 및 시간 표시
+// @version      1.0.0
+// @description  test
 // @author       MaGyul
 // @match        https://shelter.id/*
 // @match        http://shelter.id/*
@@ -12,13 +12,16 @@
 // @grant        none
 // ==/UserScript==
 
+/*
+ ● 수정된 내역
+   - 글 다음 페이지로 넘어간 상태로 글을 읽고 이전 및 다음을 눌러도 날자가 적용되지 않던 버그 수정
+*/
+
 (function() {
     'use strict';
 
     var nextId = undefined;
     var prevId = undefined;
-
-    document.addEventListener("DOMContentLoaded", () => main('dom-loaded'));
 
     // history onpushstate setup
     (function(history){
@@ -38,32 +41,34 @@
             updateDate();
         }
         if (type == 'history' || type == 'script-injected') {
-            findDom('.tit-refresh', (dom) => {
-                dom.onclick = () => {
-                    fetchArticles('default');
-                };
-            });
-            findDom('button.prev', (dom) => {
-                dom.onclick = () => {
-                    fetchArticles('prev');
-                };
-            });
-            findDom('button.next', (dom) => {
-                dom.onclick = () => {
-                    fetchArticles('next');
-                };
-            });
-            findDom('.page-size', (dom) => {
-                dom.onchange = () => {
-                    fetchArticles('default');
-                }
-            });
+            initArticles();
         }
-        setTimeout(() => {
-            if (!location.pathname.endsWith(')')) {
+        if (type == 'script-injected') {
+            fetchArticles('default');
+        }
+    }
+
+    function initArticles() {
+        findDom('app-board-list-container .tit-refresh', (dom) => {
+            dom.onclick = () => {
+                fetchArticles('default');
+            };
+        });
+        findDom('app-board-list-container button.prev', (dom) => {
+            dom.onclick = () => {
+                fetchArticles('prev');
+            };
+        });
+        findDom('app-board-list-container button.next', (dom) => {
+            dom.onclick = () => {
+                fetchArticles('next');
+            };
+        });
+        findDom('app-board-list-container .page-size', (dom) => {
+            dom.onchange = () => {
                 fetchArticles('default');
             }
-        }, 10);
+        });
     }
 
     function fetchArticles(type) {
@@ -148,6 +153,7 @@
                 time_span = document.createElement('span');
                 time_span.classList.add('datetime');
                 let time = title_li.querySelector('time');
+                if (!time) return;
                 let datetime = new Date(time.getAttribute('datetime'));
                 time_span.textContent = ` (${datetime.toLocaleString()})`;
                 title_li.appendChild(time_span);
