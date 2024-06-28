@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.4.2
+// @version      1.4.3
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -13,9 +13,7 @@
 
 /*
  ● 수정된 내역
-   - 원픽 쉘터로 지정후 그 경로로 쉘터에 진입할시 스크립트가 동작하지 않는 버그 수정
-   - 스크립트 동작시 "[ssd] ..." 로그 출력 (F12로 개발자 도구에 진입 후 Console(콘솔)탭으로 이동시 볼 수 있음)
-   - 스크립트 동장중에 오류 발생시 "[ssd] 스크립트 동작 오류..."으로 오류 로그 출력 (F12로 개발자 도구에 진입 후 Console(콘솔)탭으로 이동시 볼 수 있음)
+   - 상단에 이전 및 다음 버튼 추가
 */
 
 (function() {
@@ -34,6 +32,8 @@
         retryCount = 0;
         logger.info('최대 시도횟수 초기화 완료');
     };
+    var top_prev_btn = undefined;
+    var top_next_btn = undefined;
 
     // history onpushstate setup
     (function(history){
@@ -77,6 +77,26 @@
                         subtree: true
                     });
                 });
+                setInterval(() => {
+                    if (top_prev_btn) {
+                        findDom('app-board-list-container .board__footer button.prev', (dom) => {
+                            if (dom.disabled) {
+                                top_prev_btn.setAttribute('disabled', '');
+                            } else {
+                                top_prev_btn.removeAttribute('disabled');
+                            }
+                        });
+                    }
+                    if (top_next_btn) {
+                        findDom('app-board-list-container .board__footer button.next', (dom) => {
+                            if (dom.disabled) {
+                                top_next_btn.setAttribute('disabled', '');
+                            } else {
+                                top_next_btn.removeAttribute('disabled');
+                            }
+                        });
+                    }
+                }, 500);
                 logger.info('날자 및 시간 표시 준비완료');
             }
         } catch(e) {
@@ -96,6 +116,22 @@
         });
         findDom('app-board-list-container .page-size', (dom) => {
             dom.onchange = refrash;
+        });
+        findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', (dom) => {
+            if (dom.querySelector('& > app-button-prev-next') == null) {
+                let original = dom.querySelector('app-button-prev-next');
+                let prev_next = original.cloneNode(true);
+
+                let prev_btn = prev_next.querySelector('button.prev');
+                top_prev_btn = prev_btn;
+                prev_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.prev', (dom) => dom.click()));
+
+                let next_btn = prev_next.querySelector('button.next');
+                top_next_btn = next_btn;
+                next_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.next', (dom) => dom.click()));
+
+                dom.insertBefore(prev_next, dom.querySelector('& > .board__body'));
+            }
         });
     }
 
@@ -290,7 +326,7 @@
 
     function findDom(path, callback) {
         let dom = document.querySelector(path);
-        if (dom != null) {
+        if (typeof dom !== 'undefined') {
             callback(dom);
             return;
         }
