@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.4.5
+// @version      1.4.6
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -14,6 +14,7 @@
 /*
  ● 수정된 내역
    - 상단에 이전 및 다음 버튼 추가
+   - 코드 정리
 */
 
 (function() {
@@ -34,6 +35,7 @@
     };
     var top_prev_btn = undefined;
     var top_next_btn = undefined;
+    var observer = undefined;
 
     // history onpushstate setup
     (function(history){
@@ -48,10 +50,31 @@
 
     history.onpushstate = (state, a, pathname) => main('history', pathname);
 
-    // 감시자 인스턴스 만들기
-    const observer = new MutationObserver((mutations) => {
+    function obsesrverCallback(mutations) {
         initArticles();
-    });
+        let ms = mutations.map(m => m.target).filter(e => e.classList != undefined);
+        //if (ms.length == 0) return;
+        if (top_prev_btn) {
+            let prev_btn = ms.find(e => e.classList.contains('prev'));
+            if (prev_btn) {
+                topBtnUpdate(top_prev_btn, prev_btn);
+            } else {
+                findDom('app-board-list-container .board__footer button.prev', (dom) => {
+                    topBtnUpdate(top_prev_btn, dom);
+                });
+            }
+        }
+        if (top_next_btn) {
+            let next_btn = ms.find(e => e.classList.contains('next'));
+            if (next_btn) {
+                topBtnUpdate(top_next_btn, next_btn);
+            } else {
+                findDom('app-board-list-container .board__footer button.next', (dom) => {
+                    topBtnUpdate(top_next_btn, dom);
+                });
+            }
+        }
+    }
 
     function main(type, pathname) {
         try {
@@ -63,40 +86,18 @@
                         fetchArticles('default');
                     }
                 });
+
+                let sid = getShelterId(pathname);
+                if (sid != null && shelterId != sid) {
+                    logger.info('쉘터가 변경됨:', sid);
+                    shelterId = sid;
+                }
             }
             if (type == 'history' || type == 'script-injected') {
                 setTimeout(initArticles, 1000);
             }
             if (type == 'script-injected') {
                 fetchArticles('default');
-                findDom('app-shelter-community-page-board', (dom) => {
-                    observer.observe(dom, {
-                        attributes: true,
-                        childList: true,
-                        characterData: true,
-                        subtree: true
-                    });
-                });
-                setInterval(() => {
-                    if (top_prev_btn) {
-                        findDom('app-board-list-container .board__footer button.prev', (dom) => {
-                            if (dom.disabled) {
-                                top_prev_btn.setAttribute('disabled', '');
-                            } else {
-                                top_prev_btn.removeAttribute('disabled');
-                            }
-                        });
-                    }
-                    if (top_next_btn) {
-                        findDom('app-board-list-container .board__footer button.next', (dom) => {
-                            if (dom.disabled) {
-                                top_next_btn.setAttribute('disabled', '');
-                            } else {
-                                top_next_btn.removeAttribute('disabled');
-                            }
-                        });
-                    }
-                }, 500);
                 logger.info('날자 및 시간 표시 준비완료');
             }
         } catch(e) {
@@ -108,10 +109,10 @@
         findDom('app-board-list-container .tit-refresh', (dom) => {
             dom.onclick = refrash;
         });
-        findDom('app-board-list-container button.prev', (dom) => {
+        findDom('app-board-list-container .board__footer button.prev', (dom) => {
             dom.onclick = prevBtn;
         });
-        findDom('app-board-list-container button.next', (dom) => {
+        findDom('app-board-list-container .board__footer button.next', (dom) => {
             dom.onclick = nextBtn;
         });
         findDom('app-board-list-container .page-size', (dom) => {
@@ -137,6 +138,19 @@
                 top_prev_btn = prev_next.querySelector('button.prev');
                 top_next_btn = prev_next.querySelector('button.next');
             }
+        });
+        findDom('.main__layout__section > .area__outlet', (dom) => {
+            if (observer != undefined) {
+                observer.disconnect();
+                observer = undefined;
+            }
+            observer = new MutationObserver(obsesrverCallback);
+            observer.observe(dom, {
+                attributes: true,
+                childList: true,
+                characterData: true,
+                subtree: true
+            });
         });
     }
 
@@ -311,10 +325,17 @@
         }
     }
 
-    function getShelterId() {
+    function getShelterId(pathname = location.href) {
         try {
-            let canonical = document.querySelector('head > link[rel="canonical"]');
-            let split = canonical.href.substr(location.origin.length + 1).split('/');
+            let href = undefined;
+            if (!pathname.includes('/base/')) {
+                href = pathname.replace(location.origin, '').substr(1);
+            }
+            if (href == undefined) {
+                let canonical = document.querySelector('head > link[rel="canonical"]');
+                href = canonical.href;
+            }
+            let split = href.replace(location.origin + '/', '').split('/');
             return split[0] === '' ? undefined : split[0];
         } catch(e) {
             logger.error('스크립트 동작 오류(getShelterId())', e);
@@ -327,6 +348,15 @@
             i = '0' + i;
         }
         return i;
+    }
+
+    function topBtnUpdate(current, target) {
+        if (target.disabled) {
+            if (current.disabled) return;
+            current.setAttribute('disabled', '');
+        } else {
+            current.removeAttribute('disabled');
+        }
     }
 
     function findDom(path, callback) {
