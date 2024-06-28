@@ -120,6 +120,7 @@
         findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', (dom) => {
             if (dom.querySelector('& > app-button-prev-next') == null) {
                 let original = dom.querySelector('app-button-prev-next');
+                if (original == null) return;
                 let prev_next = original.cloneNode(true);
 
                 let prev_btn = prev_next.querySelector('button.prev');
