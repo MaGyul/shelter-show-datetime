@@ -290,7 +290,7 @@
 
     function findDom(path, callback) {
         let dom = document.querySelector(path);
-        if (typeof dom !== 'undefined') {
+        if (dom != null) {
             callback(dom);
             return;
         }
