@@ -112,14 +112,6 @@
     }
 
     function fetchArticles(type) {
-        if (retryCount >= 5) {
-            logger.warn('최대 다시시도 횟수 5회를 넘겼습니다. (스크립트가 동작하지 않을수도 있음)');
-            logger.warn('시도 횟수 초기화는 콘솔에 "resetRetryCount()"를 입력해주세요.');
-            return;
-        }
-        if (retryCount <= 5) {
-            retryCount += 1;
-        }
         setTimeout(() => {
             try {
                 if (document.querySelector('.board__body')?.children?.length <= 6) {
@@ -127,6 +119,14 @@
                 }
                 if (typeof shelterId === 'undefined') {
                     shelterId = getShelterId();
+                    if (retryCount >= 5) {
+                        logger.warn('최대 다시시도 횟수 5회를 넘겼습니다. (스크립트가 동작하지 않을수도 있음)');
+                        logger.warn('시도 횟수 초기화는 콘솔에 "resetRetryCount()"를 입력해주세요.');
+                        return;
+                    }
+                    if (retryCount <= 5) {
+                        retryCount += 1;
+                    }
                     return fetchArticles(type);
                 }
                 let pageSize = getPageSize();
