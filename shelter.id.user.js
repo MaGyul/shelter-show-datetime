@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.4.4
+// @version      1.4.5
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -132,6 +132,10 @@
                 next_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.next', (dom) => dom.click()));
 
                 dom.insertBefore(prev_next, dom.querySelector('& > .board__body'));
+            } else {
+                let prev_next = dom.querySelector('& > app-button-prev-next');
+                top_prev_btn = prev_next.querySelector('button.prev');
+                top_next_btn = prev_next.querySelector('button.next');
             }
         });
     }
