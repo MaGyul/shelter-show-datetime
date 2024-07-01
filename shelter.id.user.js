@@ -18,7 +18,7 @@
    - 코드 정리 및 안정성 개선
 */
 
-(async function() {
+(function() {
     'use strict';
     const logger = {
         info: (...data) => console.log.apply(console, ['[ssd]', ...data]),
