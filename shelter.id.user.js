@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.5.0
+// @version      1.5.1
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -18,7 +18,7 @@
    - 코드 정리 및 안정성 개선
 */
 
-(function() {
+(async function() {
     'use strict';
     const logger = {
         info: (...data) => console.log.apply(console, ['[ssd]', ...data]),
@@ -29,7 +29,7 @@
     const domCache = {};
     const modalReg = /\(modal:\w\/(\w+-?\w+)\/(\d+)\)/;
 
-    var shelterId = getShelterId();
+    var shelterId = undefined;
     var nextId = undefined;
     var prevId = undefined;
     var retryCount = 1;
@@ -52,7 +52,7 @@
         };
     })(window.history);
 
-    history.onpushstate = async (state, a, pathname) => {
+    history.onpushstate = (state, a, pathname) => {
         main('history', pathname);
         for (let key in domCache) {
             let cache = domCache[key];
@@ -99,11 +99,12 @@
                     });
                 }
 
-                let sid = getShelterId(pathname);
-                if (sid != null && shelterId != sid) {
-                    logger.info('쉘터가 변경됨:', sid);
-                    shelterId = sid;
-                }
+                getShelterId(pathname).then(sid => {
+                    if (sid != null && shelterId != sid) {
+                        logger.info('쉘터가 변경됨:', sid);
+                        shelterId = sid;
+                    }
+                });
             }
             if (type == 'history' || type == 'script-injected') {
                 setTimeout(initArticles, 1000);
@@ -118,62 +119,64 @@
     }
 
     function initArticles() {
-        findDom('app-board-list-container .tit-refresh', (dom) => {
-            dom.onclick = refrash;
-        });
-        findDom('app-board-list-container .board__footer button.prev', (dom) => {
-            dom.onclick = prevBtn;
-        });
-        findDom('app-board-list-container .board__footer button.next', (dom) => {
-            dom.onclick = nextBtn;
-        });
-        findDom('app-board-list-container .page-size', (dom) => {
-            dom.onchange = refrash;
-        });
-        findDom('app-board-list-container app-search-box > div > input', (dom) => {
-            dom.onkeypress = (e) => {
-                if (e.key == 'Enter') {
-                    refrash();
-                }
-            }
-        });
-        findDom('app-board-list-container app-search-box > div > fa-icon', (dom) => {
-            dom.onclick = refrash;
-        });
-        findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', (dom) => {
-            if (dom.querySelector('& > app-button-prev-next') == null) {
-                let original = dom.querySelector('app-button-prev-next');
-                if (original == null) return;
-                let prev_next = original.cloneNode(true);
-
-                let prev_btn = prev_next.querySelector('button.prev');
-                top_prev_btn = prev_btn;
-                prev_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.prev', (dom) => dom.click()));
-
-                let next_btn = prev_next.querySelector('button.next');
-                top_next_btn = next_btn;
-                next_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.next', (dom) => dom.click()));
-
-                dom.insertBefore(prev_next, dom.querySelector('& > .board__body'));
-            } else {
-                let prev_next = dom.querySelector('& > app-button-prev-next');
-                top_prev_btn = prev_next.querySelector('button.prev');
-                top_next_btn = prev_next.querySelector('button.next');
-            }
-        });
-        findDom('.main__layout__section > .area__outlet', (dom) => {
-            if (observer != undefined) {
-                observer.disconnect();
-                observer = undefined;
-            }
-            observer = new MutationObserver(obsesrverCallback);
-            observer.observe(dom, {
-                attributes: true,
-                childList: true,
-                characterData: true,
-                subtree: true
+        if (location.href.includes('/community/board/')) {
+            findDom('app-board-list-container .tit-refresh', (dom) => {
+                dom.onclick = refrash;
             });
-        });
+            findDom('app-board-list-container .board__footer button.prev', (dom) => {
+                dom.onclick = prevBtn;
+            });
+            findDom('app-board-list-container .board__footer button.next', (dom) => {
+                dom.onclick = nextBtn;
+            });
+            findDom('app-board-list-container .page-size', (dom) => {
+                dom.onchange = refrash;
+            });
+            findDom('app-board-list-container app-search-box > div > input', (dom) => {
+                dom.onkeypress = (e) => {
+                    if (e.key == 'Enter') {
+                        refrash();
+                    }
+                }
+            });
+            findDom('app-board-list-container app-search-box > div > fa-icon', (dom) => {
+                dom.onclick = refrash;
+            });
+            findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', (dom) => {
+                if (dom.querySelector('& > app-button-prev-next') == null) {
+                    let original = dom.querySelector('app-button-prev-next');
+                    if (original == null) return;
+                    let prev_next = original.cloneNode(true);
+
+                    let prev_btn = prev_next.querySelector('button.prev');
+                    top_prev_btn = prev_btn;
+                    prev_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.prev', (dom) => dom.click()));
+
+                    let next_btn = prev_next.querySelector('button.next');
+                    top_next_btn = next_btn;
+                    next_btn.addEventListener('click', () => findDom('app-board-list-container .board__footer button.next', (dom) => dom.click()));
+
+                    dom.insertBefore(prev_next, dom.querySelector('& > .board__body'));
+                } else {
+                    let prev_next = dom.querySelector('& > app-button-prev-next');
+                    top_prev_btn = prev_next.querySelector('button.prev');
+                    top_next_btn = prev_next.querySelector('button.next');
+                }
+            });
+            findDom('.main__layout__section > .area__outlet', (dom) => {
+                if (observer != undefined) {
+                    observer.disconnect();
+                    observer = undefined;
+                }
+                observer = new MutationObserver(obsesrverCallback);
+                observer.observe(dom, {
+                    attributes: true,
+                    childList: true,
+                    characterData: true,
+                    subtree: true
+                });
+            });
+        }
     }
 
     function refrash() {
@@ -192,10 +195,11 @@
         setTimeout(async () => {
             try {
                 if ((await findDom('.board__body')).children.length <= 6) {
-                    return setTimeout(() => fetchArticles(type), 500);
+                    await wait(500);
+                    return fetchArticles(type);
                 }
                 if (typeof shelterId === 'undefined') {
-                    shelterId = getShelterId();
+                    shelterId = await getShelterId();
                     if (retryCount >= 10) {
                         logger.warn('최대 다시시도 횟수 10회를 넘겼습니다. (스크립트가 동작하지 않을수도 있음)');
                         logger.warn('시도 횟수 초기화는 콘솔에 "resetRetryCount()"를 입력해주세요.');
@@ -204,9 +208,10 @@
                     if (retryCount <= 10) {
                         retryCount += 1;
                     }
-                    return setTimeout(() => fetchArticles(type), 500);
+                    await wait(500);
+                    return fetchArticles(type);
                 }
-                let pageSize = getPageSize();
+                let pageSize = await getPageSize();
                 let pathname = location.pathname.split('(')[0];
                 let pathSplit = pathname.split('/');
                 if (shelterId == 'planet') return;
@@ -305,11 +310,7 @@
     function updateDate() {
         setTimeout(async () => {
             try {
-                let sub_txt = document.querySelector("div > div > .sub-txt");
-                if (!sub_txt) {
-                    updateDate();
-                    return;
-                }
+                let sub_txt = await findDom("div > div > .sub-txt");
                 let title_li = sub_txt.querySelector('.sub-txt > li:nth-child(1)');
                 if (!title_li) {
                     title_li = sub_txt;
@@ -361,10 +362,10 @@
         }
     }
 
-    function getPageSize() {
+    async function getPageSize() {
         try {
-            let dom = document.querySelector('.page-size');
-            var index = dom ? dom.selectedIndex : 0;
+            let dom = await findDom('.page-size');
+            var index = dom.selectedIndex;
             if (index === 1) return 80;
             if (index === 2) return 100;
         } catch(e) {
@@ -373,14 +374,14 @@
         return 40;
     }
 
-    function getShelterId(pathname = location.href) {
+    async function getShelterId(pathname = location.href) {
         try {
             let href = undefined;
             if (!pathname.includes('/base/')) {
                 href = pathname.split('(')[0].replace(location.origin, '').substr(1);
             }
             if (href == undefined) {
-                let canonical = document.querySelector('head > link[rel="canonical"]');
+                let canonical = await findDom('head > link[rel="canonical"]');
                 href = canonical.href;
             }
             let split = href.replace(location.origin + '/', '').split('/');
