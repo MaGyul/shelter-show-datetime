@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.5.1
+// @version      1.5.2
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -15,6 +15,7 @@
  ● 수정된 내역
    - 투표, 한줄 공지 글에도 날짜 및 시간이 표시됩니다.
    - 글 리스트에서 검색 후 날짜가 적용 안 되던 버그 수정
+   - 시간에 밀리초 단위까지 표시됩니다.
    - 코드 정리 및 안정성 개선
 */
 
@@ -299,7 +300,7 @@
                     } else {
                         create_ele.textContent = `${year}-${month}-${date}`;
                     }
-                    create_ele.title = create_date.toLocaleString();
+                    create_ele.title = create_date.toLocaleString() + '.' + create_date.getMilliseconds().toString().padStart(3, 0);
                 }
             }
         } catch(e) {
@@ -341,7 +342,7 @@
                         datetime = new Date(time.getAttribute('datetime'));
                     }
                     if (datetime) {
-                        time_span.textContent = ` (${datetime.toLocaleString()})`;
+                        time_span.textContent = ` (${datetime.toLocaleString()}.${datetime.getMilliseconds().toString().padStart(3, 0)})`;
                         title_li.appendChild(time_span);
                     }
                 }
