@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.6.0
+// @version      1.6.1
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
@@ -13,8 +13,7 @@
 
 /*
  ● 수정된 내역
-   - 상단에 숨겨진 검색바 표시
-   - 현재 쉘터 API에 맞춰서 재작성
+   - 카테고리 이동시 페이지 인식 정확도 항상
    - 코드 정리 및 안정성 개선
 */
 
@@ -33,6 +32,7 @@
     var shelterOwnerId = undefined;
     var shelterId = undefined;
     var historyBoardId = undefined;
+    var boardChanged = false;
     var currentPage = 1;
     var retryCount = 1;
     window.resetRetryCount = () => {
@@ -73,7 +73,7 @@
                     let boardId = pathSplit.at(-1);
                     if (historyBoardId != boardId) {
                         historyBoardId = boardId;
-                        refrash();
+                        boardChanged = true;
                     }
                 }
 
@@ -142,7 +142,6 @@
                 };
             });
             findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', async (dom) => { // bottom change btns
-                //await wait(100);
                 if (dom.querySelector('& > app-pagination') != null) {
                     dom.querySelector('& > app-pagination').remove();
                 }
@@ -163,6 +162,13 @@
                 for (let i = 0; i < childNodes.length; i++) {
                     let ori_node = ori_childNodes[i];
                     let node = childNodes[i];
+                    if (boardChanged && ori_node.classList.contains("current")) {
+                        let changePage = ori_node.querySelector('span > span:nth-child(2)')?.textContent;
+                        if (changePage) {
+                            fetchArticles(changePage);
+                            boardChanged = false;
+                        }
+                    }
                     node.onclick = (e) => {
                         let a = ori_node.querySelector('& > a');
                         if (a) a.click();
