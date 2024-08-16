@@ -1,74 +1,54 @@
 // ==UserScript==
 // @name         쉘터 정확한 날자 및 시간 표시
 // @namespace    https://shelter.id/
-// @version      1.6.1
+// @version      1.6.2
 // @description  쉘터 정확한 날자 및 시간 표시
 // @author       MaGyul
 // @match        *://shelter.id/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=shelter.id
-// @updateURL    https://raw.githubusercontent.com/MaGyul/shelter-show-datetime/main/shelter.id.user.js
-// @downloadURL  https://raw.githubusercontent.com/MaGyul/shelter-show-datetime/main/shelter.id.user.js
+// @require      https://raw.githubusercontent.com/MaGyul/shelter-utils/main/shelter-utils.js
+// @updateURL    https://raw.githubusercontent.com/MaGyul/shelter-utils/main/shelter-show-datetime.user.js
+// @downloadURL  https://raw.githubusercontent.com/MaGyul/shelter-utils/main/shelter-show-datetime.user.js
 // @grant        none
 // ==/UserScript==
 
 /*
  ● 수정된 내역
-   - 카테고리 이동시 페이지 인식 정확도 항상
+   - 반복되서 사용되는 함수 및 변수를 한 스크립트에 모아서 사용
    - 코드 정리 및 안정성 개선
 */
 
 (async function() {
     'use strict';
-    const logger = {
-        info: (...data) => console.log.apply(console, ['[ssd]', ...data]),
-        warn: (...data) => console.warn.apply(console, ['[ssd]', ...data]),
-        error: (...data) => console.error.apply(console, ['[ssd]', ...data])
-    };
+    var logger;
 
     const showChangePageBtn = 5;
-    const domCache = {};
-    const modalReg = /\(modal:\w\/(\w+-?\w+)\/(\d+)\)/;
 
     var shelterOwnerId = undefined;
     var shelterId = undefined;
     var historyBoardId = undefined;
     var boardChanged = false;
     var currentPage = 1;
-    var retryCount = 1;
-    window.resetRetryCount = () => {
-        retryCount = 0;
-        logger.info('최대 시도횟수 초기화 완료');
-    };
     var observer = undefined;
 
-    // history onpushstate setup
-    (function(history){
-        var pushState = history.pushState;
-        history.pushState = function() {
-            if (typeof history.onpushstate == "function") {
-                history.onpushstate(...arguments);
-            }
-            return pushState.apply(history, arguments);
-        };
-    })(window.history);
+    window.addEventListener('su-loaded', () => {
+        logger = ShelterUtils.getLogger('show-datetime');
+        main('su-loaded', location.href);
+    });
 
-    history.onpushstate = (state, a, pathname) => {
+    window.addEventListener('history', (event) => {
+        const { pathname } = event.detail;
         main('history', pathname);
-        for (let key in domCache) {
-            let cache = domCache[key];
-            if (document.body.contains(cache)) break;
-            delete domCache[key];
-        }
-    };
+    })
 
     function obsesrverCallback(mutations) {
         initArticles();
     }
 
-    function main(type, pathname) {
+    async function main(type, pathname) {
         try {
             if (type == 'history') {
-                if (!modalReg.test(pathname)) {
+                if (!ShelterUtils.modalReg.test(pathname)) {
                     let pathSplit = pathname.split('/');
                     let boardId = pathSplit.at(-1);
                     if (historyBoardId != boardId) {
@@ -77,25 +57,33 @@
                     }
                 }
 
-                getShelterId(pathname).then(async sid => {
+                ShelterUtils.getShelterId(pathname).then(async sid => {
                     if (sid != null && shelterId != sid) {
-                        logger.info('쉘터가 변경됨:', sid);
+                        (logger ?? console).info('쉘터가 변경됨:', sid);
                         shelterId = sid;
-                        shelterOwnerId = await getOwnerId();
+                        shelterOwnerId = await ShelterUtils.getOwnerId(sid);
                     }
                 });
             }
-            if (type == 'history' || type == 'script-injected') {
-                if (modalReg.test(pathname)) {
+            if (type == 'history' || type == 'su-loaded') {
+                if (ShelterUtils.modalReg.test(pathname)) {
                     updateDate();
                 }
                 setTimeout(initArticles, 1000);
             }
-            if (type == 'script-injected') {
+            if (type == 'su-loaded') {
                 fetchArticles('default');
                 document.body.addEventListener('click', bodyClick, true);
-                document.head.appendChild(createStyle());
+                ShelterUtils.appendStyle('show-datetime.style');
                 logger.info('날자 및 시간 표시 준비완료');
+            }
+            if (type == 'script-injected') {
+                if (typeof ShelterUtils === 'undefined') {
+                    const script = document.createElement('script');
+                    script.classList.add('shelter-utils');
+                    script.textContent = await fetch('https://raw.githubusercontent.com/MaGyul/shelter-utils/main/shelter-utils.js').then(r => r.text());
+                    document.head.appendChild(script);
+                }
             }
         } catch(e) {
             logger.error(`스크립트 동작 오류(main(${type}, ${pathname}))`, e);
@@ -104,10 +92,12 @@
 
     function initArticles() {
         if (location.href.includes('/community/board/')) {
-            findDom('app-board-list-container .page-size', (dom) => { // top page-size
+            ShelterUtils.findDom('app-board-list-container .page-size', (dom) => { // top page-size
+                if (!dom) return;
                 dom.onchange = refrash;
             });
-            findDom('div.search > app-search-box > div > div > input.sb-input', (dom) => { // bottom
+            ShelterUtils.findDom('div.search > app-search-box > div > div > input.sb-input', (dom) => { // bottom
+                if (!dom) return;
                 dom.onkeypress = (e) => {
                     if (e.key == 'Enter') {
                         let ori = document.querySelector('div.search > app-search-box > div > div > select.sb-select');
@@ -117,7 +107,8 @@
                     }
                 }
             });
-            findDom('.ngx-ptr-content-container > app-search-box > div > div > input.sb-input', (dom) => { // top
+            ShelterUtils.findDom('.ngx-ptr-content-container > app-search-box > div > div > input.sb-input', (dom) => { // top
+                if (!dom) return;
                 dom.onkeypress = (e) => {
                     if (e.key == 'Enter') {
                         let ori = document.querySelector('.ngx-ptr-content-container > app-search-box > div > div > select.sb-select');
@@ -127,21 +118,16 @@
                     }
                 }
             });
-            findDom('div.search > app-search-box > div > div > fa-icon', (dom) => { // bottom
-                dom.onclick = () => {
-                    let ori = document.querySelector('div.search > app-search-box > div > div > select.sb-select');
-                    let set = document.querySelector('.ngx-ptr-content-container > app-search-box > div > div > select.sb-select');
-                    refrash();
-                };
+            ShelterUtils.findDom('div.search > app-search-box > div > div > fa-icon', (dom) => { // bottom
+                if (!dom) return;
+                dom.onclick = refrash;
             });
-            findDom('.ngx-ptr-content-container > app-search-box > div > div > fa-icon', (dom) => { // top
-                dom.onclick = () => {
-                    let ori = document.querySelector('.ngx-ptr-content-container > app-search-box > div > div > select.sb-select');
-                    let set = document.querySelector('div.search > app-search-box > div > div > select.sb-select');
-                    refrash();
-                };
+            ShelterUtils.findDom('.ngx-ptr-content-container > app-search-box > div > div > fa-icon', (dom) => { // top
+                if (!dom) return;
+                dom.onclick = refrash;
             });
-            findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', async (dom) => { // bottom change btns
+            ShelterUtils.findDom('ngx-pull-to-refresh > div > div.ngx-ptr-content-container', async (dom) => { // bottom change btns
+                if (!dom) return;
                 if (dom.querySelector('& > app-pagination') != null) {
                     dom.querySelector('& > app-pagination').remove();
                 }
@@ -175,7 +161,8 @@
                     }
                 }
             });
-            findDom('.main__layout__section > .area__outlet', (dom) => { // articles list container
+            ShelterUtils.findDom('.main__layout__section > .area__outlet', (dom) => { // articles list container
+                if (!dom) return;
                 if (observer != undefined) {
                     observer.disconnect();
                     observer = undefined;
@@ -193,11 +180,11 @@
 
     function bodyClick(e) {
         let target = e.target;
-        if (isDescendant('tit-refresh', target)) {
+        if (ShelterUtils.isDescendant('tit-refresh', target)) {
             refrash();
         }
-        if (isDescendant('board__footer', target, 10) && isDescendant('ngx-pagination', target)) {
-            let li = getDescendantByTag('LI', target);
+        if (ShelterUtils.isDescendant('board__footer', target, 10) && ShelterUtils.isDescendant('ngx-pagination', target)) {
+            let li = ShelterUtils.getDescendant('LI', target);
             if (li.classList.contains('pagination-previous')) {
                 fetchArticles('prev');
             } else if (li.classList.contains('current')) {
@@ -219,7 +206,7 @@
         fetchArticles('refrash');
     }
 
-    function fetchArticles(type) {
+    async function fetchArticles(type, limit = 10) {
         let changePage = Number(type);
         if (isNaN(changePage)) {
             if (type == 'refrash') {
@@ -237,73 +224,65 @@
         } else {
             currentPage = changePage;
         }
-        setTimeout(async () => {
-            try {
-                if ((await findDom('.board__body')).children.length <= 6) {
-                    await wait(500);
-                    return fetchArticles(type);
-                }
-                if (typeof shelterId === 'undefined') {
-                    shelterId = await getShelterId();
-                    if (retryCount >= 10) {
-                        logger.warn('최대 다시시도 횟수 10회를 넘겼습니다. (스크립트가 동작하지 않을수도 있음)');
-                        logger.warn('시도 횟수 초기화는 콘솔에 "resetRetryCount()"를 입력해주세요.');
-                        return;
-                    }
-                    if (retryCount <= 10) {
-                        retryCount += 1;
-                    }
-                    await wait(500);
-                    return fetchArticles(type);
-                }
-                if (typeof shelterOwnerId === 'undefined') {
-                    shelterOwnerId = await getOwnerId();
-                    if (retryCount >= 10) {
-                        logger.warn('최대 다시시도 횟수 10회를 넘겼습니다. (스크립트가 동작하지 않을수도 있음)');
-                        logger.warn('시도 횟수 초기화는 콘솔에 "resetRetryCount()"를 입력해주세요.');
-                        return;
-                    }
-                    if (retryCount <= 10) {
-                        retryCount += 1;
-                    }
-                    await wait(500);
-                    return fetchArticles(type);
-                }
-                retryCount = 0;
-                let pageSize = await getPageSize();
-                let pathname = location.pathname.split('(')[0];
-                let pathSplit = pathname.split('/');
-                if (shelterId == 'planet') return;
-                let boardId = pathSplit.at(-1);
-                let boardQuery = '';
-                if (pathname.includes('/board/') && boardId != 'all') {
-                    boardQuery = `&boardId=${boardId}`;
-                }
-                let ownerQuery = '';
-                if (boardId == 'owner') {
-                    boardQuery = '';
-                    ownerQuery = `&ownerId=${shelterOwnerId}`;
-                }
-                let searchQuery = '';
-                let searchBox = document.querySelector('div.search > app-search-box > div > div > input.sb-input');
-                let searchType = document.querySelector('div.search > app-search-box > div > div > select.sb-select');
-                if (searchBox && searchBox.value.length != 0) {
-                    searchQuery = `&searchType=${searchType.value}&keyword=${encodeURI(searchBox.value)}`
-                }
-
-                let query = `size=${pageSize}${searchQuery}${boardQuery}${ownerQuery}&page=${currentPage}`;
-
-                fetchNotification();
-                logger.info('글 리스트 조회중...');
-                return safeFetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/articles/-/by-page?${query}`)
-                    .then(updateDateArticles);
-            } catch(e) {
-                logger.error(`스크립트 동작 오류(fetchArticles(${type}))`, e);
+        await ShelterUtils.wait(500);
+        try {
+            let boardBody = await ShelterUtils.findDom('.board__body', 50);
+            if (!boardBody) {
+                if (limit-- == 0) return;
+                await ShelterUtils.wait(500);
+                return fetchArticles(type, limit);
             }
-        }, 500);
+            if (boardBody.children.length <= 6) {
+                if (limit-- == 0) return;
+                await ShelterUtils.wait(500);
+                return fetchArticles(type, limit);
+            }
+            if (typeof shelterId === 'undefined') {
+                shelterId = await ShelterUtils.getShelterId();
+                if (limit-- == 0) return;
+                await ShelterUtils.wait(500);
+                return fetchArticles(type, limit);
+            }
+            if (typeof shelterOwnerId === 'undefined') {
+                shelterOwnerId = await ShelterUtils.getOwnerId(shelterId);
+                if (limit-- == 0) return;
+                await ShelterUtils.wait(500);
+                return fetchArticles(type, limit);
+            }
+            
+            let pageSize = await getPageSize();
+            let pathname = location.pathname.split('(')[0];
+            let pathSplit = pathname.split('/');
+            if (shelterId == 'planet') return;
+            let boardId = pathSplit.at(-1);
+            let boardQuery = '';
+            if (pathname.includes('/board/') && boardId != 'all') {
+                boardQuery = `&boardId=${boardId}`;
+            }
+            let ownerQuery = '';
+            if (boardId == 'owner') {
+                boardQuery = '';
+                ownerQuery = `&ownerId=${shelterOwnerId}`;
+            }
+            let searchQuery = '';
+            let searchBox = await ShelterUtils.findDom('div.search > app-search-box > div > div > input.sb-input');
+            let searchType = await ShelterUtils.findDom('div.search > app-search-box > div > div > select.sb-select');
+            if (searchBox && searchBox.value.length != 0) {
+                searchQuery = `&searchType=${searchType.value}&keyword=${encodeURI(searchBox.value)}`
+            }
+
+            let query = `size=${pageSize}${searchQuery}${boardQuery}${ownerQuery}&page=${currentPage}`;
+
+            fetchNotification();
+            logger.info('글 리스트 조회중...');
+            return ShelterUtils.safeFetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/articles/-/by-page?${query}`)
+                .then(updateDateArticles);
+        } catch(e) {
+            logger.error(`스크립트 동작 오류(fetchArticles(${type}))`, e);
+        }
     }
 
-    function updateDateArticles(data) {
+    async function updateDateArticles(data) {
         try {
             if (typeof data.error !== 'undefined') {
                 logger.error('글 리스트 불러오기 실패', data.error);
@@ -324,11 +303,11 @@
 
             let currentDate = new Date;
             for (let item of (noti ? data.list : data.content)) {
-                let eles = document.querySelectorAll(`app-board-list-item[data-id="${item.id}"] > .SHELTER_COMMUNITY`);
+                let eles = await ShelterUtils.findDomAll(`app-board-list-item[data-id="${item.id}"] > .SHELTER_COMMUNITY`);
                 for (let ele of eles) {
                     let create_ele = ele.querySelector('.create');
                     let create_date = new Date(item.create_date);
-                    let year = ('' + create_date.getFullYear()).substr(2);
+                    let year = ('' + create_date.getFullYear()).substring(2);
                     let month = change9under(create_date.getMonth() + 1);
                     let date = change9under(create_date.getDate());
                     let hours = change9under(create_date.getHours());
@@ -349,9 +328,10 @@
     }
 
     function updateDate() {
-        setTimeout(async () => {
+        ShelterUtils.wait(200).then(async () => {
             try {
-                let sub_txt = await findDom("div > div > .sub-txt");
+                let sub_txt = await ShelterUtils.findDom("div > div > .sub-txt");
+                if (!sub_txt) return;
                 let title_li = sub_txt.querySelector('.sub-txt > li:nth-child(1)');
                 if (!title_li) {
                     title_li = sub_txt;
@@ -363,16 +343,16 @@
                     let time = title_li.querySelector('time');
                     let datetime = undefined;
                     if (!time) {
-                        let match = location.href.match(modalReg);
+                        let match = location.href.match(ShelterUtils.modalReg);
                         let path = match[1];
                         let id = match[2];
                         let data = undefined;
                         switch (path) {
                             case 'simple-notice':
-                                data = await safeFetch(`https://rest.shelter.id/v1.0/shelters/-/simple-notice/${id}`);
+                                data = await ShelterUtils.safeFetch(`https://rest.shelter.id/v1.0/shelters/-/simple-notice/${id}`);
                                 break;
                             case 'vote':
-                                data = await safeFetch(`https://rest.shelter.id/v1.0/votes/${id}`);
+                                data = await ShelterUtils.safeFetch(`https://rest.shelter.id/v1.0/votes/${id}`);
                                 break;
                         }
                         if (data && data.create_date) {
@@ -389,13 +369,13 @@
             } catch(e) {
                 logger.error('스크립트 동작 오류(updateDate())', e);
             }
-        }, 200);
+        });
     }
 
     async function fetchNotification() {
         try {
             logger.info('전체 공지 조회중...');
-            let data = await safeFetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/represent-boards/-/articles`);
+            let data = await ShelterUtils.safeFetch(`https://rest.shelter.id/v1.0/list-items/personal/${shelterId}/shelter/represent-boards/-/articles`);
             logger.info('전체 공지 조회 완료');
             updateDateArticles(data);
         } catch(e) {
@@ -405,48 +385,16 @@
 
     async function getPageSize() {
         try {
-            let dom = await findDom('.page-size');
-            var index = dom.selectedIndex;
-            if (index === 1) return 80;
-            if (index === 2) return 100;
+            let dom = await ShelterUtils.findDom('.page-size');
+            if (dom) {
+                var index = dom.selectedIndex;
+                if (index === 1) return 80;
+                if (index === 2) return 100;
+            }
         } catch(e) {
             logger.error('스크립트 동작 오류(getPageSize())', e);
         }
         return 40;
-    }
-
-    async function getShelterId(pathname = location.href) {
-        try {
-            let href = undefined;
-            if (!pathname.includes('/base/')) {
-                href = pathname.split('(')[0].replace(location.origin, '').substr(1);
-            }
-            if (href == undefined) {
-                let canonical = await findDom('head > link[rel="canonical"]');
-                href = canonical.href;
-            }
-            let split = href.replace(location.origin + '/', '').split('/');
-            return split[0] === '' ? undefined : split[0];
-        } catch(e) {
-            logger.error('스크립트 동작 오류(getShelterId())', e);
-            return undefined;
-        }
-    }
-
-    async function getOwnerId() {
-        if (typeof shelterId === 'undefined') {
-            shelterId = await getShelterId();
-        }
-        let data = await safeFetch(`https://rest.shelter.id/v1.0/list-items/angular/shelter-detail/${shelterId}`);
-
-        return data.shelter.owner.id;
-    }
-
-    function safeFetch(path, options) {
-        return fetch(path, options)
-            .catch((err) => {return {json: () => {return {error: err}}}})
-            .then(r => r.status == 204 ? {json: () => {return {error: new Error('No Content')}}} : r)
-            .then(r => r.json())
     }
 
     function change9under(i) {
@@ -454,90 +402,6 @@
             i = '0' + i;
         }
         return i;
-    }
-
-    function topBtnUpdate(current, target) {
-        if (target.disabled) {
-            if (current.disabled) return;
-            current.setAttribute('disabled', '');
-        } else {
-            current.removeAttribute('disabled');
-        }
-    }
-
-    async function findDom(path, callback) {
-        if (callback) {
-            if (domCache[path] && document.body.contains(domCache[path])) {
-                callback(domCache[path]);
-                return;
-            }
-            let dom = document.querySelector(path);
-            if (dom != null) {
-                domCache[path] = dom;
-                callback(dom);
-                return;
-            }
-        } else {
-            if (domCache[path] && document.body.contains(domCache[path])) {
-                return domCache[path];
-            }
-            let dom = document.querySelector(path);
-            if (dom != null) {
-                domCache[path] = dom;
-                return dom;
-            }
-        }
-        await wait(500);
-        return findDom(path, callback);
-    }
-
-    function isDescendant(parent, child, limit = 5) {
-        var node = child.parentNode;
-        while (node != null) {
-            if (node.classList?.contains(parent)) {
-                return true;
-            }
-            if (limit-- == 0) return false;
-            node = node.parentNode;
-        }
-        return false;
-    }
-
-    function getDescendantByClass(parent, child, limit = 5) {
-        var node = child.parentNode;
-        while (node != null) {
-            if (node.classList?.contains(parent)) {
-                return node;
-            }
-            if (limit-- == 0) return false;
-            node = node.parentNode;
-        }
-        return undefined;
-    }
-
-    function getDescendantByTag(parent, child, limit = 5) {
-        var node = child.parentNode;
-        while (node != null) {
-            if (node.tagName == parent) {
-                return node;
-            }
-            if (limit-- == 0) return false;
-            node = node.parentNode;
-        }
-        return undefined;
-    }
-
-    function createStyle() {
-        let style = document.createElement('style');
-        style.textContent = `
-        div.ngx-ptr-content-container > app-search-box > div > div > input.sb-input { width: 100%; }
-        div.board__header > div > button.btn-wider.smol.search-btn { display: block; }
-        `;
-        return style;
-    }
-
-    function wait(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     main('script-injected', location.pathname);
